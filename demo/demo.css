@@ -503,7 +503,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
-@media (min-width: 414px) {
+@media (min-width: 414px) and (hover: hover) and (pointer: fine) {
   .device-frame {
     width: var(--iphone-frame-width);
     height: var(--iphone-frame-height);
@@ -545,6 +545,68 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
     height: var(--iphone-screen-height);
     border-radius: var(--iphone-screen-radius);
     box-shadow: inset 0 0 0 1px rgba(5, 5, 5, .72);
+  }
+}
+
+@media (max-width: 413px), (hover: none) and (pointer: coarse) {
+  body {
+    min-height: 100dvh;
+  }
+
+  .device-frame {
+    width: 100vw;
+    max-width: 540px;
+    height: 100dvh;
+  }
+
+  .phone-shell {
+    min-height: 0;
+  }
+
+  .device-overlay {
+    display: none;
+  }
+
+  .map-header {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 14px;
+  }
+
+  .map-header > p {
+    margin-bottom: 12px;
+  }
+
+  .bottom-panel {
+    gap: 12px;
+    padding: 20px 20px max(16px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .panel-primary {
+    margin-top: 4px;
+  }
+
+  .compact-btn {
+    min-height: 44px;
+  }
+
+  .detail-header,
+  .service-header {
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  }
+
+  .detail-cta {
+    padding: 16px 20px max(16px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .sheet {
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .next-sheet {
+    padding-bottom: 0;
+  }
+
+  .next-footer {
+    padding: 16px 20px max(16px, env(safe-area-inset-bottom, 0px));
   }
 }
 

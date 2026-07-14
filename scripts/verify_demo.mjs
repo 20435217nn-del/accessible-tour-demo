@@ -48,10 +48,10 @@ page.on('request', (request) => {
   if (!request.url().startsWith('file:') && !request.url().startsWith('data:')) errors.push(`network request: ${request.url()}`);
 });
 
-const shot = async (name, options = {}) => {
-  const homeLink = page.locator('.project-home-link');
+const shot = async (name, options = {}, targetPage = page) => {
+  const homeLink = targetPage.locator('.project-home-link');
   if (await homeLink.count()) await homeLink.evaluate((element) => { element.style.visibility = 'hidden'; });
-  const buffer = await page.screenshot(options);
+  const buffer = await targetPage.screenshot(options);
   if (await homeLink.count()) await homeLink.evaluate((element) => { element.style.removeProperty('visibility'); });
   const output = path.join(screenshotDir, name);
   try {
@@ -75,6 +75,7 @@ check((await page.locator('.phone-shell').boundingBox())?.width === 393, 'main a
 check((await page.locator('.phone-shell').boundingBox())?.height === 852, 'main artboard must be 852 CSS px high');
 check((await page.locator('.device-frame').boundingBox())?.width === 393, 'mobile frame must match the 393px viewport');
 check(await page.locator('.device-frame').evaluate((el) => getComputedStyle(el).borderRadius === '0px'), 'mobile viewport must not show the desktop device frame');
+check(await page.locator('.device-overlay').evaluate((el) => getComputedStyle(el).display === 'none'), 'mobile viewport must hide the simulated device chrome');
 check(!(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'horizontal overflow at 393px');
 check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'vertical overflow at 393x852');
 check(await page.evaluate(() => window.ZERO_MILE_DATA.nearbyFacilities.map((point) => point.id).join('|')) === 's3|s1|r5', 'nearby facility Demo path is wrong');
@@ -232,27 +233,50 @@ check((await page.locator('.toast').textContent()).includes('已重播当前语�
 await page.locator('[data-action="end-nav"]').click();
 check(await page.locator('.voice-panel').count() === 0, 'end navigation did not close voice panel');
 
+await page.setViewportSize({ width: 393, height: 650 });
+const shortFrameBox = await page.locator('.device-frame').boundingBox();
+const shortShellBox = await page.locator('.phone-shell').boundingBox();
+const shortMapBox = await page.locator('.map-area').boundingBox();
+check(shortFrameBox && shortFrameBox.height === 650, `short mobile frame must follow 650px viewport height, got ${shortFrameBox?.height}`);
+check(shortShellBox && shortShellBox.height === 650, `short mobile shell must follow 650px viewport height, got ${shortShellBox?.height}`);
+check(shortMapBox && shortMapBox.height >= 300, `short mobile map must retain at least 300px, got ${shortMapBox?.height}`);
+check(await page.locator('.device-overlay').evaluate((el) => getComputedStyle(el).display === 'none'), 'short mobile viewport must hide the simulated device chrome');
+check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'vertical overflow at 393x650');
+await shot('iphone16-mobile-short.png');
+
 await page.setViewportSize({ width: 320, height: 700 });
 check(!(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'horizontal overflow at 320px');
 check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'vertical overflow at 320x700');
 check(await page.locator('.map-legend').evaluate((el) => el.scrollWidth <= el.clientWidth + 1), 'legend overflows at 320px');
 
-await page.setViewportSize({ width: 1200, height: 900 });
-await page.reload({ waitUntil: 'load' });
-await page.waitForSelector('.map-area');
-const desktopBox = await page.locator('.phone-shell').boundingBox();
-const frameBox = await page.locator('.device-frame').boundingBox();
-const screenBox = await page.locator('#app').boundingBox();
-const islandBox = await page.locator('.dynamic-island').boundingBox();
+const desktopContext = await browser.newContext({
+  viewport: { width: 1200, height: 900 },
+  screen: { width: 1200, height: 900 },
+  locale: 'zh-CN',
+  colorScheme: 'light'
+});
+const desktopPage = await desktopContext.newPage();
+desktopPage.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
+desktopPage.on('console', (message) => { if (message.type() === 'error') errors.push(`desktop console: ${message.text()}`); });
+desktopPage.on('request', (request) => {
+  if (!request.url().startsWith('file:') && !request.url().startsWith('data:')) errors.push(`desktop network request: ${request.url()}`);
+});
+await desktopPage.goto(target, { waitUntil: 'load' });
+await desktopPage.waitForSelector('.map-area');
+const desktopBox = await desktopPage.locator('.phone-shell').boundingBox();
+const frameBox = await desktopPage.locator('.device-frame').boundingBox();
+const screenBox = await desktopPage.locator('#app').boundingBox();
+const islandBox = await desktopPage.locator('.dynamic-island').boundingBox();
 check(desktopBox && desktopBox.width === 393, `desktop artboard width should remain 393px, got ${desktopBox?.width}`);
 check(desktopBox && Math.abs((1200 - desktopBox.width) / 2 - desktopBox.x) <= 1, 'desktop artboard is not centered');
 check(frameBox && frameBox.width === 413 && frameBox.height === 872, `desktop device frame must be 413x872px, got ${frameBox?.width}x${frameBox?.height}`);
 check(frameBox && Math.abs((1200 - frameBox.width) / 2 - frameBox.x) <= 1, 'desktop device frame is not centered');
 check(screenBox && screenBox.width === 393 && screenBox.height === 852, `desktop screen must remain 393x852px, got ${screenBox?.width}x${screenBox?.height}`);
-check(await page.locator('#app').evaluate((el) => getComputedStyle(el).borderRadius === '54px' && getComputedStyle(el).overflow === 'hidden'), 'desktop screen must use 54px rounded clipping');
+check(await desktopPage.locator('#app').evaluate((el) => getComputedStyle(el).borderRadius === '54px' && getComputedStyle(el).overflow === 'hidden'), 'desktop screen must use 54px rounded clipping');
 check(islandBox && screenBox && islandBox.y > screenBox.y && islandBox.y + islandBox.height < screenBox.y + screenBox.height, 'Dynamic Island must float inside the iPhone screen');
-await shot('iphone16-device-frame-desktop.png', { scale: 'css' });
+await shot('iphone16-device-frame-desktop.png', { scale: 'css' }, desktopPage);
 
+await desktopContext.close();
 await browser.close();
 
 if (errors.length) {
