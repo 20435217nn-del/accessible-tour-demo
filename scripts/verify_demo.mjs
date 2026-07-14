@@ -49,6 +49,7 @@ page.on('request', (request) => {
 });
 
 const shot = async (name, options = {}, targetPage = page) => {
+  await targetPage.waitForTimeout(520);
   const homeLink = targetPage.locator('.project-home-link');
   if (await homeLink.count()) await homeLink.evaluate((element) => { element.style.visibility = 'hidden'; });
   const buffer = await targetPage.screenshot(options);
@@ -96,6 +97,16 @@ await page.waitForSelector('.detail-view');
 check((await page.locator('.detail-header h1').textContent()).trim() === '县衙', 'second guide marker click must open its detail');
 await page.locator('[data-action="back-map"]').click();
 check(await page.locator('[data-id="g1"]').evaluate((el) => el === document.activeElement), 'return must restore guide marker focus');
+
+const locateButton = page.locator('[data-action="locate"]');
+await locateButton.click();
+check(await locateButton.getAttribute('aria-busy') === 'true', 'locate must expose aria-busy while resolving');
+check((await locateButton.textContent()).trim() === '定位中', 'locate must expose a clear pending label');
+await locateButton.dispatchEvent('click');
+check(await page.locator('.location-marker').count() === 0, 'duplicate locate clicks must not complete early');
+await page.waitForSelector('.location-marker');
+check((await page.locator('.toast').textContent()).includes('已定位到当前位置'), 'locate completion toast is missing');
+check(await locateButton.evaluate((el) => el === document.activeElement), 'locate completion must preserve button focus');
 await shot('iphone16-map-guide.png');
 
 await page.locator('[data-filter="service"]').click();
@@ -128,12 +139,23 @@ const nearbyButton = page.locator('[data-action="nearby-facilities"]');
 check((await nearbyButton.textContent()).trim() === '附近设施', 'bottom shortcut must be named 附近设施');
 check(await nearbyButton.locator('svg').count() === 1, 'nearby facilities must keep the accessibility icon');
 await nearbyButton.click();
+check(await nearbyButton.getAttribute('aria-busy') === 'true', 'nearby facilities must expose aria-busy while searching');
+check((await nearbyButton.textContent()).trim() === '正在查找', 'nearby facilities must expose a clear pending label');
+await nearbyButton.dispatchEvent('click');
+check(await page.locator('.nearby-facility-sheet.is-open').count() === 0, 'duplicate nearby clicks must not bypass the pending state');
+await page.waitForSelector('.nearby-facility-sheet.is-open');
 check(await page.locator('[data-filter="guide"]').getAttribute('aria-selected') === 'true', 'nearby facilities must not change the active top filter');
 check(await page.locator('.nearby-facility-sheet.is-open').count() === 1, 'nearby facilities must open its own sheet');
 check(await page.locator('.location-marker').count() === 1, 'nearby facilities must show the simulated current location');
 check((await page.locator('#nearby-facility-title').textContent()).trim() === '南门洗手间', 'nearby facilities must start at 南门洗手间');
 check((await page.locator('.nearby-facility-sheet .media-summary').textContent()).includes('无障碍卫生间'), 'South Gate facility type is wrong');
 check(await page.locator('[data-id="s3"]').getAttribute('aria-pressed') === 'true', 'recommended facility must be visible and selected outside the active filter');
+check(await page.locator('.nearby-facility-sheet [data-action="close-sheet"]').evaluate((el) => el === document.activeElement), 'opening nearby facilities must move focus into the dialog');
+await page.locator('.nearby-facility-sheet [data-action="close-sheet"]').click();
+await page.waitForSelector('.nearby-facility-sheet.is-open', { state: 'detached' });
+check(await nearbyButton.evaluate((el) => el === document.activeElement), 'closing nearby facilities must restore shortcut focus');
+await nearbyButton.click();
+await page.waitForSelector('.nearby-facility-sheet.is-open');
 await shot('iphone16-nearby-facility.png');
 
 await page.locator('[data-action="skip-facility"]').click();
@@ -152,6 +174,11 @@ await page.locator('[data-action="skip-facility"]').click();
 await page.locator('[data-action="skip-facility"]').click();
 check((await page.locator('#nearby-facility-title').textContent()).trim() === '同源馆坡板', 'facility navigation target must be 同源馆坡板');
 await page.locator('.nearby-facility-sheet [data-action="start-nav"]').click();
+const sheetNavButton = page.locator('.nearby-facility-sheet [data-action="start-nav"]');
+check(await sheetNavButton.getAttribute('aria-busy') === 'true', 'facility navigation must expose aria-busy while starting');
+check((await sheetNavButton.textContent()).trim() === '正在启动', 'facility navigation must expose a clear pending label');
+await sheetNavButton.dispatchEvent('click');
+check(await page.locator('.voice-panel').count() === 0, 'duplicate navigation clicks must not complete early');
 await page.waitForSelector('.voice-panel');
 check(await page.locator('.service-detail').count() === 0, 'nearby facility navigation must not open service detail');
 check(await page.locator('[data-filter="guide"]').getAttribute('aria-selected') === 'true', 'facility navigation must preserve the top filter');
@@ -161,7 +188,13 @@ check(await page.locator('.nav-path line').getAttribute('y2') === '65%', 'facili
 await shot('iphone16-nearby-facility-guidance.png');
 await page.locator('[data-action="end-nav"]').click();
 
-await page.locator('[data-action="listen"]').click();
+const listenButton = page.locator('[data-action="listen"]');
+await listenButton.click();
+check(await listenButton.getAttribute('aria-busy') === 'true', 'listen must expose aria-busy while finding a guide');
+check((await listenButton.textContent()).trim() === '正在查找', 'listen must expose a clear pending label');
+await listenButton.dispatchEvent('click');
+check(await page.locator('.nearest-sheet.is-open').count() === 0, 'duplicate listen clicks must not bypass the pending state');
+await page.waitForSelector('.nearest-sheet.is-open');
 check(await page.locator('.permission-sheet').count() === 0, 'Demo must not show the retired location permission sheet');
 check(await page.locator('.nearest-sheet.is-open').count() === 1, 'listen must directly open the nearest guide sheet');
 check(await page.locator('.location-marker').count() === 1, 'listen must show the simulated current location');
@@ -181,6 +214,7 @@ await page.waitForSelector('.detail-view');
 check((await page.locator('.detail-header h1').textContent()).trim() === '书院广场', 'listen after skip must open the recommended next guide');
 await page.locator('[data-action="back-map"]').click();
 await page.locator('[data-action="listen"]').click();
+await page.waitForSelector('.nearest-sheet.is-open');
 check((await page.locator('#nearest-title').textContent()).trim() === '南门', 'a new simulated location lookup must restart at South Gate');
 await page.locator('[data-action="open-recommended-guide"]').click();
 await page.waitForSelector('.detail-view');
@@ -225,6 +259,9 @@ check((await page.locator('.service-type').textContent()).includes('便民坡板
 await shot('iphone16-service-detail.png');
 
 await page.locator('[data-action="start-nav"]').click();
+const detailNavButton = page.locator('.service-detail [data-action="start-nav"]');
+check(await detailNavButton.getAttribute('aria-busy') === 'true', 'service navigation must expose aria-busy while starting');
+check((await detailNavButton.textContent()).trim() === '正在启动', 'service navigation must expose a clear pending label');
 await page.waitForSelector('.voice-panel');
 check(await page.locator('.nav-path').count() === 1, 'voice navigation path is missing');
 await shot('iphone16-voice-guidance.png');
@@ -248,6 +285,24 @@ await page.setViewportSize({ width: 320, height: 700 });
 check(!(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'horizontal overflow at 320px');
 check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'vertical overflow at 320x700');
 check(await page.locator('.map-legend').evaluate((el) => el.scrollWidth <= el.clientWidth + 1), 'legend overflows at 320px');
+
+const reducedContext = await browser.newContext({
+  viewport: { width: 393, height: 650 },
+  screen: { width: 393, height: 650 },
+  isMobile: true,
+  hasTouch: true,
+  locale: 'zh-CN',
+  reducedMotion: 'reduce'
+});
+const reducedPage = await reducedContext.newPage();
+await reducedPage.goto(target, { waitUntil: 'load' });
+await reducedPage.waitForSelector('.map-area');
+const reducedStartedAt = Date.now();
+await reducedPage.locator('[data-action="listen"]').click();
+await reducedPage.waitForSelector('.nearest-sheet.is-open');
+check(Date.now() - reducedStartedAt < 150, 'reduced motion mode must remove the simulated guide lookup delay');
+check(await reducedPage.locator('.nearest-sheet [data-action="close-sheet"]').evaluate((el) => el === document.activeElement), 'reduced motion mode must preserve dialog focus behavior');
+await reducedContext.close();
 
 const desktopContext = await browser.newContext({
   viewport: { width: 1200, height: 900 },

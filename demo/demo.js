@@ -3,7 +3,11 @@
 
   const app = document.getElementById('app');
   const data = window.ZERO_MILE_DATA;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let toastTimer = null;
+  let actionTimer = null;
+  let sheetTimer = null;
+  let sheetReturnSelector = null;
 
   const state = {
     currentView: 'map',
@@ -14,7 +18,15 @@
     toastMsg: null,
     isVoiceNavActive: false,
     mediaMode: 'video',
-    isPlaying: false
+    isPlaying: false,
+    pendingAction: null
+  };
+
+  const pendingLabels = {
+    listen: '正在查找',
+    locate: '定位中',
+    'nearby-facilities': '正在查找',
+    'start-nav': '正在启动'
   };
 
   const iconNodes = {
@@ -45,8 +57,15 @@
   }
 
   function button(label, action, variant, extra, iconName) {
-    return '<button type="button" class="btn btn-' + (variant || 'primary') + ' ' + (extra || '') + '" data-action="' + action + '">' +
-      (iconName ? icon(iconName, 'btn-icon') : '') + '<span>' + label + '</span></button>';
+    const busy = state.pendingAction === action;
+    return '<button type="button" class="btn btn-' + (variant || 'primary') + ' ' + (extra || '') + (busy ? ' is-busy' : '') + '" data-action="' + action + '"' +
+      (busy ? ' aria-busy="true" aria-disabled="true"' : '') + '>' +
+      (busy ? '<span class="busy-spinner" aria-hidden="true"></span>' : (iconName ? icon(iconName, 'btn-icon') : '')) +
+      '<span>' + (busy ? pendingLabels[action] : label) + '</span></button>';
+  }
+
+  function motionClass(motion) {
+    return motion ? ' motion-' + motion : '';
   }
 
   function selectedPoint() {
@@ -88,7 +107,7 @@
   }
 
   function markers() {
-    return activePoints().map(function (point) {
+    return activePoints().map(function (point, index) {
       const selected = state.selectedPointId === point.id;
       let symbol = '';
       if (point.type === 'guide') {
@@ -100,7 +119,7 @@
       } else {
         symbol = '<span class="map-symbol map-service"><b>服</b></span>';
       }
-      return '<button type="button" class="map-marker marker-' + point.type + (selected ? ' is-selected' : '') + '" style="left:' + point.x + '%;top:' + point.y + '%" data-action="point" data-id="' + point.id + '" aria-label="' + point.name + '，' + markerName(point) + '" aria-pressed="' + selected + '">' +
+      return '<button type="button" class="map-marker marker-' + point.type + (selected ? ' is-selected' : '') + '" style="left:' + point.x + '%;top:' + point.y + '%;--marker-index:' + index + '" data-action="point" data-id="' + point.id + '" aria-label="' + point.name + '，' + markerName(point) + '" aria-pressed="' + selected + '">' +
         symbol + (selected && !state.isVoiceNavActive ? '<span class="marker-tooltip">' + point.name + '</span>' : '') + '</button>';
     }).join('');
   }
@@ -165,8 +184,8 @@
       button('跳过', 'skip-facility', 'secondary', 'flex-1') + button('前往', 'start-nav', 'primary', 'flex-2', 'navigation') + '</div></section>';
   }
 
-  function renderMap() {
-    return '<div class="phone-shell map-view">' + deviceOverlay() +
+  function renderMap(motion) {
+    return '<div class="phone-shell map-view' + motionClass(motion) + '">' + deviceOverlay() +
       '<header class="map-header"><h1>零里说</h1><p>无障碍在线导览</p><div class="filter-tabs" role="tablist" aria-label="地图内容筛选">' + filterTabs() + '</div></header>' +
       '<main id="app-main" class="map-area" aria-label="示意地图"><img class="map-background" src="' + data.mapImage + '" alt="南头古城示意地图背景">' +
       '<aside class="map-legend" aria-label="图例">' + legend() + '</aside>' + locationMarker() + voicePath() + markers() +
@@ -187,12 +206,12 @@
     return '<button class="facility-card" data-action="open-point" data-id="' + id + '"><span class="facility-card-icon ' + shape + '">' + symbol + '</span><span class="facility-card-copy"><strong>' + title + '</strong><small>' + sub + '</small></span>' + icon('corner') + '</button>';
   }
 
-  function renderGuideDetail() {
+  function renderGuideDetail(motion) {
     const point = selectedPoint();
-    if (!point) return renderMap();
+    if (!point) return renderMap(motion);
     const mediaIcon = state.mediaMode === 'video' ? icon('video', 'media-placeholder-icon') : icon('volume', 'media-placeholder-icon');
     const mediaText = state.mediaMode === 'video' ? '真实视频待内容组替换' : '纯音频播放中';
-    return '<div class="phone-shell detail-view">' + deviceOverlay() + '<header class="detail-header"><button class="icon-button back-button" data-action="back-map" aria-label="返回地图">' + icon('back') + '</button><h1>' + point.name + '</h1></header>' +
+    return '<div class="phone-shell detail-view' + motionClass(motion) + '">' + deviceOverlay() + '<header class="detail-header"><button class="icon-button back-button" data-action="back-map" aria-label="返回地图">' + icon('back') + '</button><h1>' + point.name + '</h1></header>' +
       '<main id="app-main" class="detail-scroll"><section class="media-player"><div class="media-placeholder">' + mediaIcon + '<span>' + mediaText + '</span></div><div class="media-shade"><button class="play-button" data-action="toggle-play" aria-label="' + (state.isPlaying ? '暂停' : '播放') + '">' + icon(state.isPlaying ? 'pause' : 'play') + '</button></div>' +
       '<span class="media-badge">' + (state.mediaMode === 'video' ? '含字幕' : '纯音频') + '</span><span class="media-time">' + (state.isPlaying ? '01:24' : '00:00') + ' / 03:12</span></section>' +
       '<div class="media-switch"><button class="media-option' + (state.mediaMode === 'video' ? ' is-active' : '') + '" data-action="media-video" aria-pressed="' + (state.mediaMode === 'video') + '">' + icon('video') + '视频讲解</button>' +
@@ -208,11 +227,11 @@
     return { display: '便民服务', status: '服务开放中', symbol: '服', shape: 'diamond' };
   }
 
-  function renderServiceDetail() {
+  function renderServiceDetail(motion) {
     const point = selectedPoint();
-    if (!point) return renderMap();
+    if (!point) return renderMap(motion);
     const meta = serviceMeta(point);
-    return '<div class="phone-shell service-detail">' + deviceOverlay() + '<header class="service-header"><button class="icon-button back-button" data-action="back-map" aria-label="返回地图">' + icon('back') + '</button><span>服务详情</span></header>' +
+    return '<div class="phone-shell service-detail' + motionClass(motion) + '">' + deviceOverlay() + '<header class="service-header"><button class="icon-button back-button" data-action="back-map" aria-label="返回地图">' + icon('back') + '</button><span>服务详情</span></header>' +
       '<main id="app-main" class="service-scroll"><section class="service-title"><span class="service-hero-icon ' + meta.shape + '"><b>' + meta.symbol + '</b></span><div><h1>' + point.name + '</h1><p class="service-type">' + icon('check') + meta.display + '</p></div></section>' +
       '<section class="status-card"><h2>' + icon('info') + '状态说明</h2><p>' + meta.status + '</p></section><hr>' +
       '<section class="confirm"><h2>使用前确认</h2><div><p>坡板的具体位置、当前开放时间，以及是否需要工作人员到场协助，<strong>仍需等待现场确认</strong>。建议到达后联系附近工作人员。</p></div></section></main>' +
@@ -220,14 +239,60 @@
   }
 
   function render(options) {
-    const previousFocus = options && options.preserveFocus ? document.activeElement && document.activeElement.getAttribute('data-action') : null;
-    if (state.currentView === 'guide-detail') app.innerHTML = renderGuideDetail();
-    else if (state.currentView === 'service-detail') app.innerHTML = renderServiceDetail();
-    else app.innerHTML = renderMap();
-    if (previousFocus) {
-      const target = app.querySelector('[data-action="' + previousFocus + '"]');
+    const previousAction = options && options.preserveFocus ? document.activeElement && document.activeElement.getAttribute('data-action') : null;
+    const previousId = options && options.preserveFocus ? document.activeElement && document.activeElement.getAttribute('data-id') : null;
+    const motion = options && options.motion;
+    if (state.currentView === 'guide-detail') app.innerHTML = renderGuideDetail(motion);
+    else if (state.currentView === 'service-detail') app.innerHTML = renderServiceDetail(motion);
+    else app.innerHTML = renderMap(motion);
+    app.setAttribute('aria-busy', state.pendingAction ? 'true' : 'false');
+    const focusSelector = options && options.focusSelector;
+    if (focusSelector) {
+      const focusTarget = app.querySelector(focusSelector);
+      if (focusTarget) focusTarget.focus({ preventScroll: true });
+    } else if (previousAction) {
+      const idSelector = previousId ? '[data-id="' + previousId + '"]' : '';
+      const target = app.querySelector('[data-action="' + previousAction + '"]' + idSelector);
       if (target) target.focus({ preventScroll: true });
     }
+  }
+
+  function focusOpenSheet() {
+    const closeButton = app.querySelector('.sheet.is-open [data-action="close-sheet"]');
+    if (closeButton) closeButton.focus({ preventScroll: true });
+  }
+
+  function openSheet(returnSelector, motion) {
+    sheetReturnSelector = returnSelector;
+    render({ motion: motion || 'sheet' });
+    focusOpenSheet();
+  }
+
+  function closeSheet() {
+    if (sheetTimer || state.bottomSheet === 'none') return;
+    const returnSelector = sheetReturnSelector;
+    const openSheetNode = app.querySelector('.sheet.is-open');
+    const backdrop = app.querySelector('.sheet-backdrop');
+    if (openSheetNode) openSheetNode.classList.add('is-closing');
+    if (backdrop) backdrop.classList.add('is-closing');
+    sheetTimer = setTimeout(function () {
+      sheetTimer = null;
+      state.bottomSheet = 'none';
+      sheetReturnSelector = null;
+      render({ focusSelector: returnSelector || ('[data-action="point"][data-id="' + state.selectedPointId + '"]') });
+    }, reducedMotion.matches ? 0 : 160);
+  }
+
+  function runPendingAction(action, delay, complete) {
+    if (state.pendingAction) return;
+    clearToast();
+    state.pendingAction = action;
+    render({ preserveFocus: true });
+    actionTimer = setTimeout(function () {
+      actionTimer = null;
+      state.pendingAction = null;
+      complete();
+    }, reducedMotion.matches ? 0 : delay);
   }
 
   function clearToast() {
@@ -249,7 +314,7 @@
 
   function selectMapPoint(id) {
     state.selectedPointId = id;
-    render();
+    render({ motion: 'select' });
     const marker = app.querySelector('[data-action="point"][data-id="' + id + '"]');
     if (marker) marker.focus({ preventScroll: true });
   }
@@ -273,7 +338,7 @@
     state.bottomSheet = 'none';
     state.currentView = point.type === 'guide' ? 'guide-detail' : 'service-detail';
     state.isPlaying = false;
-    render();
+    render({ motion: 'forward' });
   }
 
   app.addEventListener('click', function (event) {
@@ -281,11 +346,13 @@
     if (!target) return;
     const action = target.getAttribute('data-action');
 
+    if (state.pendingAction) return;
+
     if (action === 'filter') {
       state.activeFilter = target.getAttribute('data-filter');
       state.selectedPointId = null;
       state.isVoiceNavActive = false;
-      render({ preserveFocus: true });
+      render({ preserveFocus: true, motion: 'filter' });
     } else if (action === 'point') {
       const pointId = target.getAttribute('data-id');
       if (state.selectedPointId === pointId) openPoint(pointId);
@@ -293,24 +360,27 @@
     } else if (action === 'open-point') {
       openPoint(target.getAttribute('data-id'));
     } else if (action === 'listen') {
-      clearToast();
-      state.locationEnabled = true;
-      state.selectedPointId = 'g6';
-      state.bottomSheet = 'nearest-guide';
-      render();
+      runPendingAction('listen', 480, function () {
+        state.locationEnabled = true;
+        state.selectedPointId = 'g6';
+        state.bottomSheet = 'nearest-guide';
+        openSheet('[data-action="listen"]');
+      });
     } else if (action === 'locate') {
-      state.locationEnabled = true;
-      showToast('已定位到当前位置');
+      runPendingAction('locate', 420, function () {
+        state.locationEnabled = true;
+        showToast('已定位到当前位置', { preserveFocus: true });
+      });
     } else if (action === 'nearby-facilities') {
-      clearToast();
-      state.locationEnabled = true;
-      state.selectedPointId = data.nearbyFacilities[0].id;
-      state.bottomSheet = 'nearest-facility';
-      state.isVoiceNavActive = false;
-      render();
+      runPendingAction('nearby-facilities', 380, function () {
+        state.locationEnabled = true;
+        state.selectedPointId = data.nearbyFacilities[0].id;
+        state.bottomSheet = 'nearest-facility';
+        state.isVoiceNavActive = false;
+        openSheet('[data-action="nearby-facilities"]');
+      });
     } else if (action === 'close-sheet') {
-      state.bottomSheet = 'none';
-      render();
+      closeSheet();
     } else if (action === 'skip-guide') {
       state.selectedPointId = nextRecommendedGuide().id;
       showToast('已切换至下一个讲解点', { preserveFocus: true });
@@ -322,7 +392,7 @@
     } else if (action === 'back-map') {
       state.currentView = 'map';
       state.bottomSheet = 'none';
-      render();
+      render({ motion: 'back' });
       const returnedMarker = app.querySelector('[data-action="point"][data-id="' + state.selectedPointId + '"]');
       if (returnedMarker) returnedMarker.focus({ preventScroll: true });
     } else if (action === 'toggle-play') {
@@ -334,7 +404,7 @@
       render({ preserveFocus: true });
     } else if (action === 'show-next') {
       state.bottomSheet = 'next-steps';
-      render();
+      openSheet('[data-action="show-next"]');
     } else if (action === 'next-guide') {
       clearToast();
       state.selectedPointId = nextRecommendedGuide().id;
@@ -343,13 +413,17 @@
       state.currentView = 'map';
       state.isPlaying = false;
       state.isVoiceNavActive = false;
-      render();
+      sheetReturnSelector = '[data-action="point"][data-id="' + state.selectedPointId + '"]';
+      render({ motion: 'sheet' });
+      focusOpenSheet();
     } else if (action === 'start-nav') {
-      clearToast();
-      state.currentView = 'map';
-      state.bottomSheet = 'none';
-      state.isVoiceNavActive = true;
-      render();
+      runPendingAction('start-nav', 320, function () {
+        state.currentView = 'map';
+        state.bottomSheet = 'none';
+        state.isVoiceNavActive = true;
+        sheetReturnSelector = null;
+        render({ motion: 'settle' });
+      });
     } else if (action === 'repeat-nav') {
       showToast('已重播当前语音');
     } else if (action === 'end-nav') {

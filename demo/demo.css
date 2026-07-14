@@ -20,6 +20,12 @@
   --white: #fff;
   --line: rgba(226, 235, 229, .8);
   --shadow-up: 0 -8px 30px rgba(22, 51, 33, .08);
+  --motion-press: 120ms;
+  --motion-state: 220ms;
+  --motion-sheet: 280ms;
+  --motion-sheet-exit: 160ms;
+  --ease-natural: cubic-bezier(.22, 1, .36, 1);
+  --ease-exit: cubic-bezier(.4, 0, 1, 1);
 }
 
 * { box-sizing: border-box; }
@@ -221,7 +227,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   line-height: 20px;
   font-weight: 500;
   transform: scale(.95);
-  transition: transform .3s ease, color .3s ease, background .3s ease, box-shadow .3s ease;
+  transition: transform var(--motion-state) var(--ease-natural), color var(--motion-state) var(--ease-natural), background var(--motion-state) var(--ease-natural), box-shadow var(--motion-state) var(--ease-natural);
 }
 .filter-tab.is-active {
   color: var(--green);
@@ -271,7 +277,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   border-radius: 50%;
   background: transparent;
   transform: translate(-50%, -50%);
-  transition: transform .2s ease;
+  transition: transform var(--motion-state) var(--ease-natural), filter var(--motion-state) var(--ease-natural);
 }
 .map-marker:hover { transform: translate(-50%, -50%) scale(1.05); }
 .map-marker.is-selected { z-index: 30; transform: translate(-50%, -50%) scale(1.1); }
@@ -363,10 +369,20 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   border-radius: 999px;
   font-size: 16px;
   font-weight: 500;
-  transition: transform .3s ease, background .3s ease, box-shadow .3s ease, border-color .3s ease;
+  transition: transform var(--motion-press) var(--ease-natural), background var(--motion-state) var(--ease-natural), box-shadow var(--motion-state) var(--ease-natural), border-color var(--motion-state) var(--ease-natural);
 }
 .btn:active { transform: scale(.98); }
+.btn.is-busy { cursor: progress; }
 .btn-icon { width: 20px; height: 20px; }
+.busy-spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: busy-spin .7s linear infinite;
+}
 .btn-primary { border: 0; background: var(--green); color: white; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
 .btn-primary:hover { border-color: var(--green-hover); background: var(--green-hover); box-shadow: 0 4px 8px rgba(0,0,0,.12); }
 .btn-secondary { border: 2px solid var(--soft-green); background: white; color: var(--deep-green); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
@@ -399,6 +415,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  animation: toast-life 3s var(--ease-natural) both;
 }
 .toast .icon { width: 16px; height: 16px; }
 .sheet-backdrop { position: absolute; inset: 0; z-index: 40; width: 100%; height: 100%; border: 0; background: rgba(0, 0, 0, .4); }
@@ -413,9 +430,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   border-radius: 32px 32px 0 0;
   background: white;
   box-shadow: 0 -8px 40px rgba(0,0,0,.12);
-  transition: transform .5s ease-out;
+  transition: transform var(--motion-sheet) var(--ease-natural);
 }
 .sheet.is-open { transform: translateY(0); }
+.motion-sheet .sheet.is-open { animation: sheet-enter var(--motion-sheet) var(--ease-natural) both; }
+.motion-sheet .sheet-backdrop { animation: backdrop-enter var(--motion-sheet) ease-out both; }
+.sheet.is-open.is-closing { animation: sheet-exit var(--motion-sheet-exit) var(--ease-exit) both; }
+.sheet-backdrop.is-closing { animation: backdrop-exit var(--motion-sheet-exit) linear both; }
 .sheet h2 { margin: 8px 0 16px; color: var(--ink); font-size: 24px; line-height: 1.25; }
 .sheet > p { margin: 0 0 32px; color: var(--muted); font-size: 16px; line-height: 1.625; }
 .sheet-actions { display: grid; gap: 16px; }
@@ -502,6 +523,57 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
 .confirm p { margin: 0; color: var(--deep-green); font-size: 16px; line-height: 1.625; }
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+@keyframes page-forward {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes page-back {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes content-settle {
+  from { opacity: .55; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes marker-enter {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.82); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes marker-select {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  55% { transform: translate(-50%, -50%) scale(1.16); }
+  100% { transform: translate(-50%, -50%) scale(1.1); }
+}
+@keyframes legend-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheet-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-exit {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@keyframes backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+@keyframes toast-life {
+  0% { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
+  8%, 86% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% - 4px)); }
+}
+
+.motion-forward { animation: page-forward var(--motion-state) var(--ease-natural) both; }
+.motion-back { animation: page-back var(--motion-state) var(--ease-natural) both; }
+.motion-settle .voice-panel { animation: content-settle var(--motion-state) var(--ease-natural) both; }
+.motion-filter .map-legend { animation: legend-enter var(--motion-state) var(--ease-natural) both; }
+.motion-filter .map-marker {
+  animation: marker-enter var(--motion-state) var(--ease-natural) both;
+  animation-delay: calc(var(--marker-index) * 18ms);
+}
+.motion-select .map-marker.is-selected { animation: marker-select var(--motion-state) var(--ease-natural) both; }
 
 @media (min-width: 414px) and (hover: hover) and (pointer: fine) {
   .device-frame {
@@ -641,4 +713,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .toast { opacity: 1; transform: translate(-50%, -50%); }
+  .busy-spinner { border-top-color: currentColor; }
 }
