@@ -66,6 +66,7 @@ const shot = async (name, options = {}, targetPage = page) => {
 
 await page.goto(target, { waitUntil: 'load' });
 await page.waitForSelector('.map-area');
+check(await page.locator('.voice-contact').count() === 0, 'support phone controls must only appear during voice guidance');
 const projectHome = page.locator('.project-home-link');
 check(await projectHome.count() === 1, 'Demo must expose one project home control');
 check(await projectHome.getAttribute('href') === '../index.html', 'Demo project home href is incorrect');
@@ -264,9 +265,71 @@ check(await detailNavButton.getAttribute('aria-busy') === 'true', 'service navig
 check((await detailNavButton.textContent()).trim() === '正在启动', 'service navigation must expose a clear pending label');
 await page.waitForSelector('.voice-panel');
 check(await page.locator('.nav-path').count() === 1, 'voice navigation path is missing');
+check(await page.locator('.voice-contact').count() === 1, 'voice guidance must expose one support phone control group');
+check((await page.locator('.voice-contact-status').textContent()).trim() === '联系电话待补充', 'empty support phone must expose a clear placeholder');
+check(await page.locator('.voice-contact a[href^="tel:"]').count() === 0, 'empty support phone must not create a tel link');
+const unavailablePhoneActions = page.locator('.voice-contact-action');
+check(await unavailablePhoneActions.count() === 2, 'voice guidance must expose phone and copy text controls');
+check((await unavailablePhoneActions.nth(0).textContent()).trim() === '电话联系', 'phone action label is wrong');
+check((await unavailablePhoneActions.nth(1).textContent()).trim() === '复制', 'copy action label is wrong');
+check(await unavailablePhoneActions.nth(0).isDisabled() && await unavailablePhoneActions.nth(1).isDisabled(), 'empty support phone actions must be disabled');
+for (let index = 0; index < 2; index += 1) {
+  const actionBox = await unavailablePhoneActions.nth(index).boundingBox();
+  check(actionBox && actionBox.width >= 44 && actionBox.height >= 44, `support phone action ${index + 1} must be at least 44px`);
+}
 await shot('iphone16-voice-guidance.png');
+
+await page.evaluate(() => { window.ZERO_MILE_DATA.supportPhone = '0755-1234 5678'; });
 await page.locator('[data-action="repeat-nav"]').click();
 check((await page.locator('.toast').textContent()).includes('已重播当前语音'), 'repeat voice toast is missing');
+check((await page.locator('.voice-contact-status').textContent()).trim() === '0755-1234 5678', 'configured support phone must be visible');
+const phoneLink = page.locator('.voice-contact a');
+check(await phoneLink.getAttribute('href') === 'tel:075512345678', 'support phone tel link is wrong');
+check((await phoneLink.textContent()).trim() === '电话联系', 'configured phone link label is wrong');
+
+await page.evaluate(() => {
+  window.__clipboardText = null;
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: (text) => { window.__clipboardText = text; return Promise.resolve(); } }
+  });
+});
+const copyPhoneButton = page.locator('[data-action="copy-support-phone"]');
+await copyPhoneButton.click();
+await page.waitForFunction(() => window.__clipboardText !== null);
+check(await page.evaluate(() => window.__clipboardText) === '0755-1234 5678', 'Clipboard API must receive the complete display phone');
+check((await page.locator('.toast').textContent()).includes('电话号码已复制'), 'clipboard success toast is missing');
+check(await copyPhoneButton.evaluate((el) => el === document.activeElement), 'copy completion must preserve button focus');
+
+await page.evaluate(() => {
+  window.__fallbackClipboardText = null;
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+  document.execCommand = (command) => {
+    if (command !== 'copy') return false;
+    const field = document.querySelector('textarea');
+    window.__fallbackClipboardText = field ? field.value : null;
+    return true;
+  };
+});
+await copyPhoneButton.click();
+await page.waitForFunction(() => window.__fallbackClipboardText !== null);
+check(await page.evaluate(() => window.__fallbackClipboardText) === '0755-1234 5678', 'offline copy fallback must receive the complete display phone');
+check((await page.locator('.toast').textContent()).includes('电话号码已复制'), 'fallback copy success toast is missing');
+
+await page.evaluate(() => { document.execCommand = () => false; });
+await copyPhoneButton.click();
+await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('复制失败'));
+check((await page.locator('.toast').textContent()).includes('复制失败，请手动记录'), 'copy failure must expose a manual fallback message');
+
+await page.setViewportSize({ width: 393, height: 650 });
+check(!(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'voice guidance overflows horizontally at 393x650');
+check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'voice guidance overflows vertically at 393x650');
+check(await page.locator('.voice-toolbar').evaluate((el) => el.scrollWidth <= el.clientWidth + 1), 'voice contact toolbar overflows at 393x650');
+await page.setViewportSize({ width: 320, height: 700 });
+check(!(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'voice guidance overflows horizontally at 320x700');
+check(!(await page.evaluate(() => document.documentElement.scrollHeight > document.documentElement.clientHeight + 1)), 'voice guidance overflows vertically at 320x700');
+check(await page.locator('.voice-toolbar').evaluate((el) => el.scrollWidth <= el.clientWidth + 1), 'voice contact toolbar overflows at 320px');
+await page.setViewportSize({ width: 393, height: 852 });
 await page.locator('[data-action="end-nav"]').click();
 check(await page.locator('.voice-panel').count() === 0, 'end navigation did not close voice panel');
 
@@ -339,4 +402,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log('Demo verification passed: 17 assets, two-step map markers, guide and nearby-facility recommendations, direct voice guidance, iPhone 16 frame, focus, offline mode, and responsive checks.');
+console.log('Demo verification passed: 17 assets, two-step map markers, guide and nearby-facility recommendations, support phone states, direct voice guidance, iPhone 16 frame, focus, offline mode, and responsive checks.');

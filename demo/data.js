@@ -52,6 +52,7 @@
 
   window.ZERO_MILE_DATA = {
     mapImage: 'assets/figma-make/018740dea30b01362c4a3f15d652f695.png',
+    supportPhone: '',
     allPoints: allPoints,
     guides: guides,
     guideSequence: guides.map(function (guide) { return guide.id; }),

@@ -391,11 +391,39 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
 .compact-btn { min-height: 40px; padding: 10px 12px; font-size: 14px; }
 .compact-btn .btn-icon { width: 16px; height: 16px; }
 .voice-panel { display: block; }
-.voice-copy { margin: 8px 0 20px; }
+.voice-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 8px 0 4px; }
+.voice-copy { margin: 0 0 20px; }
 .voice-copy p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 20px; }
-.voice-copy .voice-kicker { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--green); font-weight: 700; }
+.voice-kicker { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--green); font-size: 14px; line-height: 20px; font-weight: 700; white-space: nowrap; }
 .voice-kicker .icon { width: 16px; height: 16px; }
 .voice-copy h2 { margin: 8px 0 0; color: var(--ink); font-size: 20px; line-height: 28px; }
+.voice-contact { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; }
+.voice-contact-status { max-width: 136px; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.voice-contact-actions { display: flex; gap: 2px; }
+.voice-contact-action {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--deep-green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--motion-state) var(--ease-natural), background var(--motion-state) var(--ease-natural), transform var(--motion-press) var(--ease-natural);
+}
+.voice-contact-action:hover { color: var(--green-hover); background: var(--soft-green); }
+.voice-contact-action:active { transform: scale(.96); }
+.voice-contact-action:disabled { color: var(--muted); cursor: not-allowed; opacity: .72; text-decoration-style: dotted; }
+.voice-contact-action:disabled:hover { background: transparent; }
 
 .toast {
   position: absolute;
@@ -709,6 +737,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(66, 140, 92, .52
   .btn { padding-right: 14px; padding-left: 14px; }
   .compact-btn { font-size: 13px; }
   .map-legend { top: 10px; left: 10px; padding: 9px; }
+  .voice-toolbar { gap: 6px; }
+  .voice-kicker { font-size: 13px; }
+  .voice-contact-status { max-width: 116px; font-size: 11px; }
+  .voice-contact-action { padding-right: 5px; padding-left: 5px; font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

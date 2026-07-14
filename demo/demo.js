@@ -145,9 +145,36 @@
     return state.locationEnabled ? '<div class="location-marker" role="img" aria-label="您的当前位置"></div>' : '';
   }
 
+  function supportPhone() {
+    return String(data.supportPhone || '').trim();
+  }
+
+  function dialablePhone() {
+    return supportPhone().replace(/[^\d+]/g, '');
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (character) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+    });
+  }
+
+  function contactActions() {
+    const phone = supportPhone();
+    const dialable = dialablePhone();
+    const status = phone || '联系电话待补充';
+    const phoneAction = dialable
+      ? '<a class="voice-contact-action" href="tel:' + dialable + '" aria-label="拨打辅助联系电话 ' + escapeHtml(phone) + '">电话联系</a>'
+      : '<button type="button" class="voice-contact-action" disabled aria-label="电话联系，联系电话待补充">电话联系</button>';
+    const copyAction = phone
+      ? '<button type="button" class="voice-contact-action" data-action="copy-support-phone" aria-label="复制辅助联系电话 ' + escapeHtml(phone) + '">复制</button>'
+      : '<button type="button" class="voice-contact-action" disabled aria-label="复制电话，联系电话待补充">复制</button>';
+    return '<div class="voice-contact"><span class="voice-contact-status">' + escapeHtml(status) + '</span><div class="voice-contact-actions">' + phoneAction + copyAction + '</div></div>';
+  }
+
   function bottomActions() {
     if (state.isVoiceNavActive) {
-      return '<section class="bottom-panel voice-panel"><span class="drag-handle"></span><div class="voice-copy"><p class="voice-kicker">' + icon('navigation') + '语音辅助指引中</p>' +
+      return '<section class="bottom-panel voice-panel"><span class="drag-handle"></span><div class="voice-toolbar"><p class="voice-kicker">' + icon('navigation') + '语音辅助指引中</p>' + contactActions() + '</div><div class="voice-copy">' +
         '<h2>前方路口右转，沿缓坡向上</h2><p>示意指引，尚未完成现场走测</p></div><div class="button-row">' +
         button('重复本段', 'repeat-nav', 'secondary', 'flex-1') + button('结束指引', 'end-nav', 'primary', 'flex-1') + '</div></section>';
     }
@@ -295,6 +322,48 @@
     }, reducedMotion.matches ? 0 : delay);
   }
 
+  function legacyCopyText(text) {
+    return new Promise(function (resolve, reject) {
+      const field = document.createElement('textarea');
+      field.value = text;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.top = '-1000px';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      field.setSelectionRange(0, field.value.length);
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (error) {
+        copied = false;
+      }
+      field.remove();
+      if (copied) resolve();
+      else reject(new Error('Copy command was not available'));
+    });
+  }
+
+  function writeClipboard(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      return navigator.clipboard.writeText(text).catch(function () {
+        return legacyCopyText(text);
+      });
+    }
+    return legacyCopyText(text);
+  }
+
+  function copySupportPhone() {
+    const phone = supportPhone();
+    if (!phone) return;
+    writeClipboard(phone).then(function () {
+      showToast('电话号码已复制', { preserveFocus: true });
+    }).catch(function () {
+      showToast('复制失败，请手动记录', { preserveFocus: true });
+    });
+  }
+
   function clearToast() {
     clearTimeout(toastTimer);
     toastTimer = null;
@@ -426,6 +495,8 @@
       });
     } else if (action === 'repeat-nav') {
       showToast('已重播当前语音');
+    } else if (action === 'copy-support-phone') {
+      copySupportPhone();
     } else if (action === 'end-nav') {
       state.isVoiceNavActive = false;
       showToast('已结束导航');
