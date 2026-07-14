@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#fbf7ee">
+  <meta name="description" content="零里说无障碍在线导览项目展示入口">
+  <title>零里说 · 无障碍在线导览项目展示</title>
+  <style>
+    :root {
+      --paper: #fbf7ee;
+      --paper-deep: #f2ecdf;
+      --ink: #163321;
+      --deep-green: #214d34;
+      --green: #428c5c;
+      --green-dark: #32734a;
+      --muted: #627a68;
+      --line: #d4dfd7;
+      --soft-green: #e2ebe5;
+      --facility: #b06540;
+      --facility-soft: #f5ebe6;
+      --white: #fff;
+      --font-body: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      --font-display: "Songti SC", "STSong", "SimSun", serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { min-width: 320px; background: var(--paper); }
+
+    body {
+      min-height: 100svh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 76%, rgba(226, 235, 229, .38) 76% 100%),
+        var(--paper);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+
+    a:focus-visible {
+      outline: 3px solid rgba(66, 140, 92, .62);
+      outline-offset: 5px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 8px;
+      left: 8px;
+      min-height: 44px;
+      padding: 10px 16px;
+      transform: translateY(-160%);
+      background: var(--ink);
+      color: var(--white);
+      font-weight: 700;
+    }
+
+    .skip-link:focus { transform: none; }
+
+    .project-shell {
+      width: min(calc(100% - 64px), 1320px);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: 28px 0 34px;
+    }
+
+    .masthead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .wordmark {
+      font: 800 22px/1 var(--font-display);
+      letter-spacing: .08em;
+    }
+
+    .masthead-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+
+    .project-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+      gap: clamp(44px, 8vw, 124px);
+      align-items: end;
+      padding: clamp(30px, 5vh, 52px) 0 clamp(28px, 4vh, 42px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      color: var(--green-dark);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .eyebrow::before {
+      width: 30px;
+      height: 3px;
+      background: var(--green);
+      content: "";
+    }
+
+    h1 {
+      max-width: 9em;
+      margin: 0;
+      font: 800 clamp(48px, 6vw, 82px)/1.08 var(--font-display);
+      letter-spacing: -.035em;
+      text-wrap: balance;
+    }
+
+    .intro-copy > p {
+      max-width: 35em;
+      margin: 0 0 18px;
+      color: var(--deep-green);
+      font-size: clamp(16px, 1.35vw, 19px);
+      line-height: 1.75;
+      text-wrap: pretty;
+    }
+
+    .delivery-note {
+      margin: 0;
+      padding: 14px 16px;
+      border-left: 4px solid var(--green);
+      background: var(--soft-green);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .entry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .entry-card {
+      display: grid;
+      grid-template-rows: minmax(250px, 31vh) auto;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .74);
+      box-shadow: 0 12px 32px rgba(22, 51, 33, .07);
+      text-decoration: none;
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    .entry-card:hover {
+      border-color: rgba(66, 140, 92, .62);
+      box-shadow: 0 18px 40px rgba(22, 51, 33, .11);
+      transform: translateY(-3px);
+    }
+
+    .entry-card[data-entry="prd"]:hover { border-color: rgba(176, 101, 64, .62); }
+
+    .entry-preview {
+      position: relative;
+      min-height: 0;
+      margin: 0;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .entry-card[data-entry="demo"] .entry-preview { background: #edf0ed; }
+    .entry-card[data-entry="prd"] .entry-preview { background: var(--paper-deep); }
+
+    .entry-preview img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-position: center;
+    }
+
+    .entry-card[data-entry="demo"] .entry-preview img {
+      padding: 12px;
+      object-fit: contain;
+    }
+
+    .entry-card[data-entry="prd"] .entry-preview img { object-fit: cover; }
+
+    .entry-body {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px 28px;
+      align-items: end;
+      padding: 22px 24px 24px;
+    }
+
+    .entry-type {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 0 0 9px;
+      color: var(--green-dark);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .1em;
+    }
+
+    .entry-card[data-entry="prd"] .entry-type { color: var(--facility); }
+
+    .entry-index {
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    .entry-card h2 {
+      margin: 0 0 7px;
+      color: var(--deep-green);
+      font: 750 clamp(25px, 2.3vw, 34px)/1.2 var(--font-display);
+      letter-spacing: -.015em;
+    }
+
+    .entry-description {
+      max-width: 38em;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      text-wrap: pretty;
+    }
+
+    .entry-action {
+      display: inline-flex;
+      min-width: 122px;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 15px;
+      border-radius: 999px;
+      background: var(--deep-green);
+      color: var(--white);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .entry-card[data-entry="prd"] .entry-action { background: var(--facility); }
+
+    .entry-action svg {
+      width: 17px;
+      height: 17px;
+      transition: transform 180ms ease;
+    }
+
+    .entry-card:hover .entry-action svg { transform: translateX(3px); }
+
+    .project-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .project-footer p { margin: 0; }
+
+    @media (max-width: 860px) {
+      body { background: var(--paper); }
+      .project-shell { width: min(calc(100% - 40px), 720px); }
+      .project-intro { grid-template-columns: 1fr; gap: 24px; }
+      h1 { max-width: 10em; }
+      .entry-grid { grid-template-columns: 1fr; }
+      .entry-card { grid-template-rows: minmax(230px, 38vw) auto; }
+    }
+
+    @media (max-width: 560px) {
+      .project-shell { width: calc(100% - 28px); padding-top: 16px; }
+      .masthead { padding-bottom: 11px; }
+      .masthead-meta { max-width: 48%; font-size: 9px; text-align: right; }
+      .project-intro { padding: 27px 0 26px; }
+      h1 { font-size: clamp(42px, 14vw, 58px); }
+      .intro-copy > p { font-size: 16px; }
+      .entry-card { grid-template-rows: 220px auto; border-radius: 14px; }
+      .entry-body { grid-template-columns: 1fr; gap: 17px; padding: 19px 18px 20px; }
+      .entry-action { width: 100%; }
+      .project-footer { display: block; }
+      .project-footer p + p { margin-top: 6px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#project-entries">跳到展示入口</a>
+  <main class="project-shell">
+    <header class="masthead">
+      <span class="wordmark">零里说</span>
+      <span class="masthead-meta">PROJECT PRESENTATION · OFFLINE DELIVERY</span>
+    </header>
+
+    <section class="project-intro" aria-labelledby="project-title">
+      <div>
+        <p class="eyebrow">全民友好的居民文化导览</p>
+        <h1 id="project-title">无障碍在线导览</h1>
+      </div>
+      <div class="intro-copy">
+        <p>面向南头古城现场游客，以地图连接居民讲解、便民服务和无障碍服务；一段讲解结束后先回到地图确认下一站，再继续进入新的地点故事。</p>
+        <aside class="delivery-note" role="note">当前交付包含可点击离线 Demo 与项目级 PRD。Demo 的下一站按演示顺序推荐；地图、定位、设施状态与路线仍为模拟或示意能力。</aside>
+      </div>
+    </section>
+
+    <section class="entry-grid" id="project-entries" aria-label="项目展示入口">
+      <a class="entry-card" data-entry="demo" href="demo/index.html" aria-describedby="demo-description">
+        <figure class="entry-preview">
+          <img src="demo/screenshots/iphone16-next-guide-transition.png" alt="零里说 iPhone 16 交互 Demo 的下一个讲解点地图过渡预览">
+        </figure>
+        <article class="entry-body">
+          <div>
+            <p class="entry-type"><span class="entry-index">01</span><span>INTERACTIVE DEMO</span></p>
+            <h2>体验可点击导览</h2>
+            <p class="entry-description" id="demo-description">体验地图分类、居民讲解，以及讲解完成后回到地图选择下一站的连续导览流程。</p>
+          </div>
+          <span class="entry-action">进入 Demo
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </span>
+        </article>
+      </a>
+
+      <a class="entry-card" data-entry="prd" href="output/html/零里说-无障碍在线导览-PRD.html" aria-describedby="prd-description">
+        <figure class="entry-preview">
+          <img src="output/html/screenshots/prd-html-desktop.png" alt="零里说无障碍在线导览项目级 PRD 首页预览">
+        </figure>
+        <article class="entry-body">
+          <div>
+            <p class="entry-type"><span class="entry-index">02</span><span>PRODUCT REQUIREMENTS</span></p>
+            <h2>查看项目 PRD</h2>
+            <p class="entry-description" id="prd-description">阅读产品背景、用户任务、信息架构、核心需求、能力边界、验收与协作分工。</p>
+          </div>
+          <span class="entry-action">打开 PRD
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </span>
+        </article>
+      </a>
+    </section>
+
+    <footer class="project-footer">
+      <p>建议浏览顺序：先体验 Demo，再阅读 PRD。</p>
+      <p>离线交付 · 请保留完整文件夹结构</p>
+    </footer>
+  </main>
+</body>
+</html>
